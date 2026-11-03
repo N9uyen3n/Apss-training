@@ -1,0 +1,2495 @@
+{
+  "info": {
+    "name": "Neo - BC Training API GET POST",
+    "description": "Run Companies first, configure environment values, then run folders in order. Creates sandbox records and retains them for screenshots. No live sandbox execution is claimed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "serviceRoot",
+      "value": "https://api.businesscentral.dynamics.com/v2.0/{{tenantId}}/{{environmentName}}"
+    },
+    {
+      "key": "customApiBase",
+      "value": "{{serviceRoot}}/api/neo/training/v1.0/companies({{companyId}})"
+    },
+    {
+      "key": "runPrefix",
+      "value": "RUN-COMPANIES-FIRST"
+    },
+    {
+      "key": "orderDate",
+      "value": "2026-11-03"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Companies - run first, then set companyId",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{serviceRoot}}/api/v2.0/companies"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('runPrefix', 'N' + Date.now().toString().slice(-10));",
+              "pm.collectionVariables.set('orderDate', new Date().toISOString().slice(0, 10));",
+              "['training','customer','vendor','item','purchase'].forEach(key => {",
+              "    ['Id','Body','Number','RejectedNumber','ReverseNumber'].forEach(suffix => pm.collectionVariables.unset(key + suffix));",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('OData collection', () => pm.expect(pm.response.json().value).to.be.an('array'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 Training Entry",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries?$top=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('OData collection', () => pm.expect(pm.response.json().value).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST valid record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"number\": \"{{runPrefix}}-T\",\n  \"description\": \"Training keyboard\",\n  \"quantity\": 2,\n  \"unitPrice\": 125.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set('trainingBody', pm.variables.replaceIn(pm.request.body.raw));",
+                  "    const expected = JSON.parse(pm.collectionVariables.get('trainingBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"number\",\"description\",\"quantity\",\"unitPrice\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "pm.test('Server calculated amount', () => pm.expect(actual.amount).to.eql(251));",
+                  "    pm.collectionVariables.set('trainingId', actual.id);",
+                  "    pm.collectionVariables.set('trainingNumber', actual.number);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET created record by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries({{trainingId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const expected = JSON.parse(pm.collectionVariables.get('trainingBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"number\",\"description\",\"quantity\",\"unitPrice\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "pm.test('Server calculated amount', () => pm.expect(actual.amount).to.eql(251));",
+                  "pm.test('Same id', () => pm.expect(actual.id).to.eql(pm.collectionVariables.get('trainingId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST duplicate number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries",
+            "body": {
+              "mode": "raw",
+              "raw": "{{duplicateBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('trainingBody'));",
+                  "body.number = pm.collectionVariables.get('trainingNumber');",
+                  "pm.variables.set('duplicateBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});",
+                  "pm.test('Error identifies duplicate number', () => pm.expect(pm.response.json().error.message).to.include(pm.collectionVariables.get('trainingNumber')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET duplicate number - exactly one record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries?$filter=number eq '{{trainingNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Only original record', () => { const rows = pm.response.json().value; pm.expect(rows).to.have.lengthOf(1); pm.expect(rows[0].id).to.eql(pm.collectionVariables.get('trainingId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST missing required field",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries",
+            "body": {
+              "mode": "raw",
+              "raw": "{{rejectedBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('trainingBody'));",
+                  "body.number = pm.collectionVariables.get('runPrefix') + '-TM';",
+                  "delete body.description;",
+                  "pm.collectionVariables.set('trainingRejectedNumber', body.number);",
+                  "pm.variables.set('rejectedBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET missing-field failure - no record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries?$filter=number eq '{{trainingRejectedNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Nothing inserted', () => pm.expect(pm.response.json().value).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH disabled",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "*"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries({{trainingId}})",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Changed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,405]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE disabled",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "*"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries({{trainingId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,405]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET original after rejected writes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries({{trainingId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const expected = JSON.parse(pm.collectionVariables.get('trainingBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"number\",\"description\",\"quantity\",\"unitPrice\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "pm.test('Server calculated amount', () => pm.expect(actual.amount).to.eql(251));",
+                  "pm.test('Same id', () => pm.expect(actual.id).to.eql(pm.collectionVariables.get('trainingId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST zero quantity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries",
+            "body": {
+              "mode": "raw",
+              "raw": "{{invalidBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('trainingBody'));",
+                  "body.number = pm.collectionVariables.get('runPrefix') + '-TQZ';",
+                  "body.quantity = 0;",
+                  "pm.collectionVariables.set('trainingRejectedNumber', body.number);",
+                  "pm.variables.set('invalidBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET after zero quantity - no record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries?$filter=number eq '{{trainingRejectedNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Failure rolled back', () => pm.expect(pm.response.json().value).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST negative quantity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries",
+            "body": {
+              "mode": "raw",
+              "raw": "{{invalidBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('trainingBody'));",
+                  "body.number = pm.collectionVariables.get('runPrefix') + '-TQN';",
+                  "body.quantity = -1;",
+                  "pm.collectionVariables.set('trainingRejectedNumber', body.number);",
+                  "pm.variables.set('invalidBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET after negative quantity - no record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries?$filter=number eq '{{trainingRejectedNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Failure rolled back', () => pm.expect(pm.response.json().value).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST negative price",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries",
+            "body": {
+              "mode": "raw",
+              "raw": "{{invalidBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('trainingBody'));",
+                  "body.number = pm.collectionVariables.get('runPrefix') + '-TPN';",
+                  "body.unitPrice = -1;",
+                  "pm.collectionVariables.set('trainingRejectedNumber', body.number);",
+                  "pm.variables.set('invalidBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET after negative price - no record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries?$filter=number eq '{{trainingRejectedNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Failure rolled back', () => pm.expect(pm.response.json().value).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST missing number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries",
+            "body": {
+              "mode": "raw",
+              "raw": "{{invalidBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('trainingBody'));",
+                  "body.number = pm.collectionVariables.get('runPrefix') + '-TMN';",
+                  "body.number = \"\";",
+                  "pm.collectionVariables.set('trainingRejectedNumber', body.number);",
+                  "pm.variables.set('invalidBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET after missing number - no record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries?$filter=number eq '{{trainingRejectedNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Failure rolled back', () => pm.expect(pm.response.json().value).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST reversed JSON fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/trainingEntries",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unitPrice\": 125.5,\n  \"quantity\": 2,\n  \"description\": \"Reversed fields\",\n  \"number\": \"{{runPrefix}}-TR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Amount unaffected by JSON order', () => pm.expect(pm.response.json().amount).to.eql(251));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Customer",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/customerExamples?$top=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('OData collection', () => pm.expect(pm.response.json().value).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST valid record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/customerExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"number\": \"{{runPrefix}}-C\",\n  \"name\": \"Training Customer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set('customerBody', pm.variables.replaceIn(pm.request.body.raw));",
+                  "    const expected = JSON.parse(pm.collectionVariables.get('customerBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"number\",\"name\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "",
+                  "    pm.collectionVariables.set('customerId', actual.id);",
+                  "    pm.collectionVariables.set('customerNumber', actual.number);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET created record by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/customerExamples({{customerId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const expected = JSON.parse(pm.collectionVariables.get('customerBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"number\",\"name\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "",
+                  "pm.test('Same id', () => pm.expect(actual.id).to.eql(pm.collectionVariables.get('customerId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST duplicate number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/customerExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{{duplicateBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('customerBody'));",
+                  "body.number = pm.collectionVariables.get('customerNumber');",
+                  "pm.variables.set('duplicateBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});",
+                  "pm.test('Error identifies duplicate number', () => pm.expect(pm.response.json().error.message).to.include(pm.collectionVariables.get('customerNumber')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET duplicate number - exactly one record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/customerExamples?$filter=number eq '{{customerNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Only original record', () => { const rows = pm.response.json().value; pm.expect(rows).to.have.lengthOf(1); pm.expect(rows[0].id).to.eql(pm.collectionVariables.get('customerId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST missing required field",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/customerExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{{rejectedBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('customerBody'));",
+                  "body.number = pm.collectionVariables.get('runPrefix') + '-CM';",
+                  "delete body.name;",
+                  "pm.collectionVariables.set('customerRejectedNumber', body.number);",
+                  "pm.variables.set('rejectedBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET missing-field failure - no record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/customerExamples?$filter=number eq '{{customerRejectedNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Nothing inserted', () => pm.expect(pm.response.json().value).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH disabled",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "*"
+              }
+            ],
+            "url": "{{customApiBase}}/customerExamples({{customerId}})",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Changed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,405]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE disabled",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "*"
+              }
+            ],
+            "url": "{{customApiBase}}/customerExamples({{customerId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,405]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET original after rejected writes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/customerExamples({{customerId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const expected = JSON.parse(pm.collectionVariables.get('customerBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"number\",\"name\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "",
+                  "pm.test('Same id', () => pm.expect(actual.id).to.eql(pm.collectionVariables.get('customerId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Vendor",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/vendorExamples?$top=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('OData collection', () => pm.expect(pm.response.json().value).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST valid record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/vendorExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"number\": \"{{runPrefix}}-V\",\n  \"name\": \"Training Vendor\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set('vendorBody', pm.variables.replaceIn(pm.request.body.raw));",
+                  "    const expected = JSON.parse(pm.collectionVariables.get('vendorBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"number\",\"name\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "",
+                  "    pm.collectionVariables.set('vendorId', actual.id);",
+                  "    pm.collectionVariables.set('vendorNumber', actual.number);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET created record by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/vendorExamples({{vendorId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const expected = JSON.parse(pm.collectionVariables.get('vendorBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"number\",\"name\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "",
+                  "pm.test('Same id', () => pm.expect(actual.id).to.eql(pm.collectionVariables.get('vendorId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST duplicate number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/vendorExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{{duplicateBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('vendorBody'));",
+                  "body.number = pm.collectionVariables.get('vendorNumber');",
+                  "pm.variables.set('duplicateBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});",
+                  "pm.test('Error identifies duplicate number', () => pm.expect(pm.response.json().error.message).to.include(pm.collectionVariables.get('vendorNumber')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET duplicate number - exactly one record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/vendorExamples?$filter=number eq '{{vendorNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Only original record', () => { const rows = pm.response.json().value; pm.expect(rows).to.have.lengthOf(1); pm.expect(rows[0].id).to.eql(pm.collectionVariables.get('vendorId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST missing required field",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/vendorExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{{rejectedBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('vendorBody'));",
+                  "body.number = pm.collectionVariables.get('runPrefix') + '-VM';",
+                  "delete body.name;",
+                  "pm.collectionVariables.set('vendorRejectedNumber', body.number);",
+                  "pm.variables.set('rejectedBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET missing-field failure - no record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/vendorExamples?$filter=number eq '{{vendorRejectedNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Nothing inserted', () => pm.expect(pm.response.json().value).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH disabled",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "*"
+              }
+            ],
+            "url": "{{customApiBase}}/vendorExamples({{vendorId}})",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Changed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,405]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE disabled",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "*"
+              }
+            ],
+            "url": "{{customApiBase}}/vendorExamples({{vendorId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,405]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET original after rejected writes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/vendorExamples({{vendorId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const expected = JSON.parse(pm.collectionVariables.get('vendorBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"number\",\"name\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "",
+                  "pm.test('Same id', () => pm.expect(actual.id).to.eql(pm.collectionVariables.get('vendorId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Item",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples?$top=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('OData collection', () => pm.expect(pm.response.json().value).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST valid record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"number\": \"{{runPrefix}}-I\",\n  \"description\": \"Training Item\",\n  \"baseUnitOfMeasure\": \"{{baseUnitOfMeasure}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set('itemBody', pm.variables.replaceIn(pm.request.body.raw));",
+                  "    const expected = JSON.parse(pm.collectionVariables.get('itemBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"number\",\"description\",\"baseUnitOfMeasure\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "",
+                  "    pm.collectionVariables.set('itemId', actual.id);",
+                  "    pm.collectionVariables.set('itemNumber', actual.number);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET created record by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples({{itemId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const expected = JSON.parse(pm.collectionVariables.get('itemBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"number\",\"description\",\"baseUnitOfMeasure\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "",
+                  "pm.test('Same id', () => pm.expect(actual.id).to.eql(pm.collectionVariables.get('itemId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST duplicate number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{{duplicateBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('itemBody'));",
+                  "body.number = pm.collectionVariables.get('itemNumber');",
+                  "pm.variables.set('duplicateBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});",
+                  "pm.test('Error identifies duplicate number', () => pm.expect(pm.response.json().error.message).to.include(pm.collectionVariables.get('itemNumber')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET duplicate number - exactly one record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples?$filter=number eq '{{itemNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Only original record', () => { const rows = pm.response.json().value; pm.expect(rows).to.have.lengthOf(1); pm.expect(rows[0].id).to.eql(pm.collectionVariables.get('itemId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST missing required field",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{{rejectedBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('itemBody'));",
+                  "body.number = pm.collectionVariables.get('runPrefix') + '-IM';",
+                  "delete body.description;",
+                  "pm.collectionVariables.set('itemRejectedNumber', body.number);",
+                  "pm.variables.set('rejectedBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET missing-field failure - no record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples?$filter=number eq '{{itemRejectedNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Nothing inserted', () => pm.expect(pm.response.json().value).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH disabled",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "*"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples({{itemId}})",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Changed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,405]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE disabled",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "*"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples({{itemId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,405]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET original after rejected writes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples({{itemId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const expected = JSON.parse(pm.collectionVariables.get('itemBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"number\",\"description\",\"baseUnitOfMeasure\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "",
+                  "pm.test('Same id', () => pm.expect(actual.id).to.eql(pm.collectionVariables.get('itemId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST unknown UOM",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{{invalidBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('itemBody'));",
+                  "body.number = pm.collectionVariables.get('runPrefix') + '-IU';",
+                  "body.baseUnitOfMeasure = \"ZZNOEXIST\";",
+                  "pm.collectionVariables.set('itemRejectedNumber', body.number);",
+                  "pm.variables.set('invalidBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});",
+                  "pm.test('Error identifies invalid reference', () => pm.expect(pm.response.json().error.message).to.include(\"ZZNOEXIST\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET after unknown UOM - no record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples?$filter=number eq '{{itemRejectedNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Failure rolled back', () => pm.expect(pm.response.json().value).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST UOM before number in JSON",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/itemExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"baseUnitOfMeasure\": \"{{baseUnitOfMeasure}}\",\n  \"description\": \"Reversed Item fields\",\n  \"number\": \"{{runPrefix}}-IR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Number and UOM preserved', () => { const body = pm.response.json(); pm.expect(body.number).to.eql(pm.variables.replaceIn('{{runPrefix}}-IR')); pm.expect(body.baseUnitOfMeasure).to.eql(pm.variables.get('baseUnitOfMeasure')); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Purchase Order header",
+      "item": [
+        {
+          "name": "GET list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/purchaseOrderExamples?$top=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('OData collection', () => pm.expect(pm.response.json().value).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST valid record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/purchaseOrderExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendorNumber\": \"{{existingVendorNumber}}\",\n  \"orderDate\": \"{{orderDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set('purchaseBody', pm.variables.replaceIn(pm.request.body.raw));",
+                  "    const expected = JSON.parse(pm.collectionVariables.get('purchaseBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"vendorNumber\",\"orderDate\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "pm.test('Generated number and vendor name', () => {",
+                  "    pm.expect(actual.number).to.be.a('string').and.not.empty;",
+                  "    pm.expect(actual.vendorName).to.be.a('string').and.not.empty;",
+                  "});",
+                  "    pm.collectionVariables.set('purchaseId', actual.id);",
+                  "    pm.collectionVariables.set('purchaseNumber', actual.number);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET created record by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/purchaseOrderExamples({{purchaseId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const expected = JSON.parse(pm.collectionVariables.get('purchaseBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"vendorNumber\",\"orderDate\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "pm.test('Generated number and vendor name', () => {",
+                  "    pm.expect(actual.number).to.be.a('string').and.not.empty;",
+                  "    pm.expect(actual.vendorName).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Same id', () => pm.expect(actual.id).to.eql(pm.collectionVariables.get('purchaseId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST duplicate number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/purchaseOrderExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{{duplicateBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('purchaseBody'));",
+                  "body.number = pm.collectionVariables.get('purchaseNumber');",
+                  "pm.variables.set('duplicateBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});",
+                  "pm.test('Error identifies duplicate number', () => pm.expect(pm.response.json().error.message).to.include(pm.collectionVariables.get('purchaseNumber')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET duplicate number - exactly one record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/purchaseOrderExamples?$filter=number eq '{{purchaseNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Only original record', () => { const rows = pm.response.json().value; pm.expect(rows).to.have.lengthOf(1); pm.expect(rows[0].id).to.eql(pm.collectionVariables.get('purchaseId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST missing required field",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/purchaseOrderExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{{rejectedBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('purchaseBody'));",
+                  "body.number = pm.collectionVariables.get('runPrefix') + '-PM';",
+                  "delete body.vendorNumber;",
+                  "pm.collectionVariables.set('purchaseRejectedNumber', body.number);",
+                  "pm.variables.set('rejectedBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET missing-field failure - no record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/purchaseOrderExamples?$filter=number eq '{{purchaseRejectedNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Nothing inserted', () => pm.expect(pm.response.json().value).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH disabled",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "*"
+              }
+            ],
+            "url": "{{customApiBase}}/purchaseOrderExamples({{purchaseId}})",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderDate\": \"2026-01-01\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,405]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE disabled",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "*"
+              }
+            ],
+            "url": "{{customApiBase}}/purchaseOrderExamples({{purchaseId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,405]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET original after rejected writes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/purchaseOrderExamples({{purchaseId}})"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const expected = JSON.parse(pm.collectionVariables.get('purchaseBody'));",
+                  "const actual = pm.response.json();",
+                  "pm.test('GUID id', () => pm.expect(actual.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));",
+                  "pm.test('Fields preserved', () => {",
+                  "    [\"vendorNumber\",\"orderDate\"].forEach(field => pm.expect(actual[field], field).to.eql(expected[field]));",
+                  "});",
+                  "pm.test('Generated number and vendor name', () => {",
+                  "    pm.expect(actual.number).to.be.a('string').and.not.empty;",
+                  "    pm.expect(actual.vendorName).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Same id', () => pm.expect(actual.id).to.eql(pm.collectionVariables.get('purchaseId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST unknown vendor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/purchaseOrderExamples",
+            "body": {
+              "mode": "raw",
+              "raw": "{{invalidBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = JSON.parse(pm.collectionVariables.get('purchaseBody'));",
+                  "body.number = pm.collectionVariables.get('runPrefix') + '-PV';",
+                  "body.vendorNumber = \"ZZ-NO-SUCH-VENDOR\";",
+                  "pm.collectionVariables.set('purchaseRejectedNumber', body.number);",
+                  "pm.variables.set('invalidBody', JSON.stringify(body));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected operation error, not authentication failure', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400,409,422]);",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});",
+                  "pm.test('Error identifies invalid reference', () => pm.expect(pm.response.json().error.message).to.include(\"ZZ-NO-SUCH-VENDOR\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET after unknown vendor - no record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{customApiBase}}/purchaseOrderExamples?$filter=number eq '{{purchaseRejectedNumber}}'"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Failure rolled back', () => pm.expect(pm.response.json().value).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

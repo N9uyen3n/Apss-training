@@ -1,4 +1,4 @@
-// Bảng tạm để minh họa API vì chưa xác định được bảng training thực tế.
+// Bảng training của bài tập; quy tắc số lượng và thành tiền dùng để thực hành.
 table 80201 "Training Entry"
 {
     Caption = 'Training Entry';
@@ -43,4 +43,29 @@ table 80201 "Training Entry"
             Clustered = true;
         }
     }
+
+    trigger OnInsert()
+    begin
+        CheckAndCalculateAmount();
+    end;
+
+    trigger OnModify()
+    begin
+        CheckAndCalculateAmount();
+    end;
+
+    local procedure CheckAndCalculateAmount()
+    begin
+        TestField("No.");
+        TestField(Description);
+        if Quantity <= 0 then
+            Error(QuantityErr);
+        if "Unit Price" < 0 then
+            Error(UnitPriceErr);
+        Amount := Round(Quantity * "Unit Price", 0.01);
+    end;
+
+    var
+        QuantityErr: Label 'Quantity must be greater than zero.';
+        UnitPriceErr: Label 'Unit price cannot be negative.';
 }

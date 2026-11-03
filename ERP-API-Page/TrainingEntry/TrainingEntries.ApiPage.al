@@ -2,6 +2,7 @@
 page 80201 "Training Entries API"
 {
     PageType = API;
+    Extensible = false;
     Caption = 'Training Entries API';
     // Các thuộc tính này tạo đường dẫn neo/training/v1.0/trainingEntries.
     APIPublisher = 'neo';
@@ -57,24 +58,4 @@ page 80201 "Training Entries API"
         }
     }
 
-    // Quy tắc minh họa, chưa được xác nhận là nghiệp vụ của tổ chức.
-    // Chỉ áp dụng khi chèn qua API page này, không áp dụng cho mọi đường ghi bảng.
-    // Kiểm tra sau khi nhận các trường, trước khi API chèn bản ghi.
-    trigger OnInsertRecord(BelowxRec: Boolean): Boolean
-    begin
-        Rec.TestField("No.");
-        Rec.TestField(Description);
-        if Rec.Quantity <= 0 then
-            Error(QuantityErr);
-        if Rec."Unit Price" < 0 then
-            Error(UnitPriceErr);
-
-        // 0.01 là quy ước của bài tập, không đại diện mọi loại tiền tệ.
-        Rec.Amount := Round(Rec.Quantity * Rec."Unit Price", 0.01);
-        exit(true);
-    end;
-
-    var
-        QuantityErr: Label 'Quantity must be greater than zero.';
-        UnitPriceErr: Label 'Unit price cannot be negative.';
 }

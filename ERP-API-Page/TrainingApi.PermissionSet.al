@@ -7,6 +7,7 @@ permissionset 80200 "NEO TRAINING API"
         tabledata "Training Entry" = RI,
         table "Training Entry" = X,
         page "Training Entries API" = X,
+        page "Training API Demo" = X,
         page "Training Customer API" = X,
         page "Training Vendor API" = X,
         page "Training Item API" = X,

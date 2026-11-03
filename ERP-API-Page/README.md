@@ -21,7 +21,19 @@ Từ bài gốc, em mở rộng API Page để tìm hiểu thêm các bảng:
 | Item (27) | Lưu thông tin mặt hàng và đơn vị tính cơ bản; tạo mặt hàng chưa làm tăng tồn kho | `itemExamples` |
 | Purchase Header (38) | Lưu phần đầu chứng từ mua hàng; API chỉ xử lý loại Order, chưa tạo dòng đơn | `purchaseOrderExamples` |
 
-Mỗi bảng có một API Page hỗ trợ GET/POST. Thư mục `postman` chứa các request chuẩn bị cho việc kiểm thử. File `TrainingApi.PermissionSet.al` khai báo quyền cho phần training và các API Page.
+Mỗi bảng có một API Page hỗ trợ GET/POST. File `TrainingApi.PermissionSet.al` khai báo quyền cho phần training và các API Page.
+
+## Giả lập GET/POST trong BC
+
+Theo hướng dẫn bổ sung, em tạo page **Training API Demo (80207)** với hai action GET và POST, không cần Entra App ID hay Postman. Đây là mô phỏng bằng AL, không gọi HTTP đến API Page.
+
+1. Publish lại extension bằng `Ctrl+F5` trong VS Code.
+2. Trong BC, nhấn `Alt+Q`, tìm **Training API Demo**.
+3. Trang điền sẵn mã mẫu, mô tả, số lượng 2 và đơn giá 125.5. Bấm **POST** để lưu vào Training Entry và xem JSON với amount = 251.
+4. Giữ nguyên mã và bấm **GET** để đọc lại bản ghi. Xóa Number nếu muốn đọc tối đa 50 bản ghi.
+5. POST lại cùng mã sẽ báo trùng; số lượng không hợp lệ hoặc giá âm sẽ bị từ chối. Muốn tạo bản ghi khác, đổi mã hoặc mở lại trang để có mã mẫu mới.
+
+GET chỉ đọc; POST lưu dữ liệu thật vào bảng training, không tạo khách hàng, mặt hàng hay chứng từ mua hàng. Có thể chụp phần Simulation Result làm kết quả thực hành.
 
 ## Kết quả Page Inspection
 
@@ -39,4 +51,4 @@ Qua phần này, em hiểu thêm cách xác định page đang sử dụng bản
 
 - Code đã build và publish thành công lên sandbox.
 - Đã thực hiện Page Inspection và chụp ảnh kết quả.
-- Chưa chạy GET/POST trực tiếp trên sandbox; cần cấu hình xác thực API từ người phụ trách.
+- Đã bổ sung hai action giả lập GET/POST; cần publish bản cập nhật và bấm thử trên sandbox để chụp kết quả. API HTTP chưa được kiểm thử.
